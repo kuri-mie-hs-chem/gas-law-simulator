@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>気体の法則 実験シミュレーター v10</title>
+<style>
+:root{
+  --bg:#eef1f4;--panel:#fff;--ink:#18212b;--muted:#66717d;--line:#c9d0d7;
+  --accent:#1769aa;--accent-dark:#0d4f80;--accent2:#d97706;--glass:#dfeaf2;
+  --success:#10b981;--mission-card:#f8fafc;--mission-border:#cbd5e1;
+}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(#dfe4e8,#f5f6f7);color:var(--ink);font-family:"Noto Sans JP","Yu Gothic",Meiryo,sans-serif;overflow-x:hidden}
+.app{max-width:1500px;margin:auto;padding:18px}
+
+header{background:#26323d;color:white;border:3px solid #111b24;border-radius:12px 12px 0 0;padding:14px 20px;box-shadow:0 5px 0 #9aa3ab;display:flex;justify-content:space-between;align-items:center}
+h1{margin:0;font-size:24px;letter-spacing:.04em}.subtitle{font-size:12px;color:#cbd5df;margin-top:4px}
+
+/* モード切替ナビゲーション */
+.nav-modes{display:flex;background:#1e293b;padding:6px;gap:8px;border-radius:0 0 10px 10px;margin-bottom:14px}
+.nav-btn{flex:1;padding:12px 16px;border:none;background:transparent;color:#94a3b8;border-radius:6px;font-weight:700;font-size:15px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.nav-btn:hover{color:#fff;background:rgba(255,255,255,0.05)}
+.nav-btn.active{background:var(--accent);color:white;box-shadow:0 2px 8px rgba(0,0,0,0.2)}
+
+/* サブタブ */
+.sub-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+.sub-tab{flex:1;min-width:110px;padding:9px 12px;border:2px solid #7e8993;background:#e9edf0;color:#27323c;border-radius:6px;font-weight:700;cursor:pointer;text-align:center;font-size:13px;transition:all 0.15s}
+.sub-tab:hover{background:#dbe4eb}
+.sub-tab.active{background:#dceeff;border-color:var(--accent);color:#0d4f80;box-shadow:inset 0 -3px 0 var(--accent)}
+
+/* メインレイアウト */
+.main{display:grid;grid-template-columns:300px minmax(460px,1fr) 420px;gap:12px}
+.panel{background:var(--panel);border:2px solid #aeb7bf;border-radius:9px;box-shadow:0 3px 8px #0001;position:relative}
+.panel h2{font-size:15px;margin:0;padding:10px 12px;background:#e7ebee;border-bottom:1px solid #b8c0c7;display:flex;justify-content:space-between;align-items:center}
+
+/* ミッション専用UI */
+.mission-hero{grid-column:1/-1;background:linear-gradient(135deg, #1e293b, #0f172a);color:white;padding:18px 24px;border-radius:10px;margin-bottom:12px;border:2px solid #334155;box-shadow:0 4px 12px rgba(0,0,0,0.15)}
+.mission-hero-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:10px}
+.mission-select-wrap select{font-size:14px;padding:6px 12px;border-radius:6px;border:1px solid #475569;background:#334155;color:white;font-weight:bold;cursor:pointer;max-width:320px}
+.mission-story{background:rgba(255,255,255,0.07);padding:14px 18px;border-radius:8px;border-left:5px solid #f59e0b;margin-top:8px}
+.mission-story-title{font-size:18px;font-weight:800;color:#fbbf24;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.mission-story-desc{font-size:14px;line-height:1.6;color:#e2e8f0;margin:0}
+.mission-constraint{margin-top:8px;font-size:12px;color:#94a3b8;display:flex;gap:16px}
+.mission-constraint span{background:#334155;padding:3px 8px;border-radius:4px;color:#cbd5e1;font-weight:bold}
+
+.controls{padding:13px}.control{margin-bottom:17px;transition:opacity 0.2s}
+.control label{display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:13px}
+.value{font-variant-numeric:tabular-nums;white-space:nowrap}
+.inputrow{display:grid;grid-template-columns:1fr 84px;gap:8px;align-items:center;margin-top:7px}
+.slider{width:100%;accent-color:var(--accent)}
+.num{width:84px;padding:6px 5px;border:1px solid #9da7af;border-radius:5px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;background:#fff}
+.num:disabled,.slider:disabled{opacity:.45;cursor:not-allowed}
+.fixed{display:inline-block;margin-left:5px;padding:2px 6px;border-radius:9px;background:#e7ebee;color:#56616a;font-size:10px;font-weight:700}
+.hint{font-size:11px;color:var(--muted);line-height:1.55;margin-top:4px}
+.buttonrow{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.btn{border:1px solid #7c8791;background:#f6f7f8;padding:9px;border-radius:6px;font-weight:700;cursor:pointer;transition:all 0.15s}
+.btn.primary{background:var(--accent);color:white;border-color:var(--accent-dark)}
+.btn.burner-btn{background:#e2e8f0;border-color:#cbd5e1}
+.btn.burner-btn:hover{background:#cbd5e1}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+.missionState{margin:8px 0;padding:10px;border-radius:6px;font-size:12px;font-weight:700;background:#f3f5f6;border:1px solid #c7ced4}
+.missionState.active{background:#fff7df;border-color:#e0c36b;color:#745600}
+.missionState.done{background:#eaf7ef;border-color:#9ac9aa;color:#17643b}
+.progress{height:10px;background:#334155;border-radius:5px;overflow:hidden;width:140px}
+.progress > div{height:100%;width:0%;background:#10b981;transition:width .25s}
+.control.missionLocked{opacity:.35;pointer-events:none}
+.answerMasked{color:transparent!important;text-shadow:0 0 9px #334155!important;user-select:none!important}
+.answerInputMasked{color:transparent!important;text-shadow:0 0 8px #334155!important;caret-color:#1769aa!important}
+.resultHidden{filter:blur(7px);user-select:none;pointer-events:none}
+.lockbox{margin:10px 0;padding:9px;background:#f4f6f7;border:1px solid #c7ced4;border-radius:6px;font-size:11px}
+.lockbox strong{color:#0d5e94}
+
+/* 実験装置関連 */
+.lab{padding:14px;min-height:430px;position:relative;background:linear-gradient(135deg,#fafbfc,#edf1f3);overflow:hidden;user-select:none;transition:background 0.5s}
+.labTitle{text-align:center;font-weight:800;color:#39444d;margin-bottom:2px;z-index:10;position:relative}
+
+/* 装置テーマ変更スタイリング */
+.lab.theme-ocean { background: linear-gradient(180deg, #0284c7 0%, #0369a1 40%, #0c4a6e 100%); color:white; }
+.lab.theme-ocean .labTitle { color: #f0f9ff; }
+.lab.theme-balloon { background: linear-gradient(180deg, #38bdf8 0%, #bae6fd 60%, #e0f2fe 100%); }
+.lab.theme-balloon .labTitle { color: #0f172a; }
+.lab.theme-tire { background: linear-gradient(135deg, #1e293b, #0f172a); }
+.lab.theme-tire .labTitle { color: #f8fafc; }
+.lab.theme-space { background: radial-gradient(circle at center, #1e1b4b 0%, #0f172a 70%, #020617 100%); }
+.lab.theme-space .labTitle { color: #e2e8f0; }
+
+.cylinder{width:min(370px,72%);height:380px;margin:0 auto;position:relative;cursor:grab}
+.cylinder:active{cursor:grabbing}
+.tube{position:absolute;left:21%;right:21%;top:42px;bottom:35px;border:7px solid #56616b;border-radius:18px 18px 9px 9px;background:linear-gradient(90deg,#b9cbd6aa,#f9fdff88,#b9cbd6aa);box-shadow:inset 0 0 20px #7890a033}
+.gas{position:absolute;left:27%;right:27%;bottom:42px;height:220px;background:#b7d7e9aa;border:2px solid #7194aa;border-radius:6px 6px 12px 12px;overflow:hidden;transition:background 0.3s}
+.piston{position:absolute;left:24%;right:24%;height:24px;top:165px;background:#4e5963;border:3px solid #20272d;border-radius:5px;z-index:4;transition:top 0.05s linear}
+.piston-handle{position:absolute;width:60px;height:12px;background:#d97706;border:2px solid #92400e;border-radius:6px;left:calc(50% - 30px);top:-18px;z-index:5;cursor:ns-resize;box-shadow:0 2px 4px rgba(0,0,0,0.2)}
+.rod{position:absolute;width:16px;height:72px;left:calc(50% - 8px);top:88px;background:#737d85;border:2px solid #343b40;z-index:3;transition:top 0.05s linear}
+
+/* 特殊オブジェクトグラフィック */
+.balloon-graphic{position:absolute;left:calc(50% - 70px);top:80px;width:140px;height:160px;background:radial-gradient(circle at 35% 35%, #ef4444, #991b1b);border-radius:50% 50% 50% 50% / 40% 40% 60% 60%;display:none;z-index:3;box-shadow:0 10px 25px rgba(0,0,0,0.3);transition:transform 0.1s linear;}
+
+/* リアルにアップグレードされたタイヤグラフィック */
+.tire-graphic {
+  position: absolute;
+  left: calc(50% - 110px);
+  top: 90px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  display: none;
+  z-index: 3;
+  /* ゴムのシャドウと質感を強調 */
+  box-shadow: 0 12px 28px rgba(0,0,0,0.6), inset 0 0 15px rgba(0,0,0,0.8);
+  transition: transform 0.1s linear;
+  background:
+    /* トレッドパターン (溝) */
+    repeating-conic-gradient(
+      from 0deg,
+      #1e232a 0deg 4deg,
+      #090b0d 4deg 8deg,
+      #2c323b 8deg 10deg,
+      #090b0d 10deg 12deg
+    );
+  padding: 18px; /* タイヤゴムの厚み */
+  box-sizing: border-box;
+}
+
+/* タイヤのサイドウォール (ゴムの内壁) */
+.tire-graphic::before {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #2a313a 0%, #111418 70%, #050607 100%);
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.9), 0 0 4px rgba(255,255,255,0.1);
+  z-index: 1;
+}
+
+/* リアルなメタルホイールリム */
+.tire-rim {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #e2e8f0 0%, #94a3b8 40%, #475569 85%, #1e293b 100%);
+  border: 4px solid #64748b;
+  box-shadow: inset 0 0 12px rgba(0,0,0,0.6), 0 0 8px rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  overflow: hidden;
+}
+
+/* ホイールスポーク（5本スポークデザイン） */
+.tire-rim::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    #cbd5e1 0deg 24deg,
+    #0f172a 24deg 72deg
+  );
+  mask: radial-gradient(circle, transparent 25%, black 26%);
+  -webkit-mask: radial-gradient(circle, transparent 25%, black 26%);
+  box-shadow: inset 0 0 6px rgba(0,0,0,0.8);
+}
+
+/* ホイールセンターキャップ & ハブナット */
+.tire-rim::after {
+  content: "";
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #f8fafc, #64748b 70%, #334155);
+  border: 2px solid #1e293b;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+}
+
+/* 重りイラスト (SVGカスタムアイコン) */
+.weights{position:absolute;top:10px;left:calc(50% - 110px);width:220px;height:65px;display:flex;flex-direction:row;gap:4px;align-items:flex-end;justify-content:center;z-index:6}
+.weight-icon{width:32px;height:38px;background:linear-gradient(135deg,#94a3b8,#475569);border:2px solid #1e293b;border-radius:4px 4px 6px 6px;position:relative;box-shadow:0 3px 4px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center}
+.weight-icon::before{content:"";position:absolute;top:-8px;width:12px;height:8px;border:2px solid #334155;border-bottom:none;border-radius:4px 4px 0 0;background:#cbd5e1}
+.weight-icon::after{content:"";position:absolute;width:80%;height:3px;background:rgba(255,255,255,0.4);top:4px;border-radius:2px}
+.weight-base{width:50px;height:12px;background:linear-gradient(135deg,#64748b,#334155);border:2px solid #0f172a;border-radius:3px;box-shadow:0 2px 4px rgba(0,0,0,0.3)}
+
+/* ゲージ */
+.gauge{position:absolute;right:2%;top:95px;width:110px;height:110px;border:6px solid #515b64;border-radius:50%;background:#f8f9fa;box-shadow:0 3px 5px #0002;z-index:7}
+.gauge::before{content:"0.5";position:absolute;left:7px;bottom:18px;font-size:8px;color:#333}.gauge::after{content:"2.0";position:absolute;right:7px;bottom:18px;font-size:8px;color:#333}
+.needle{position:absolute;left:50%;bottom:50%;width:3px;height:40px;background:#a33;transform-origin:bottom center;transform:translateX(-50%) rotate(0deg);transition:transform .25s}
+.gauge .hub{position:absolute;left:50%;top:50%;width:10px;height:10px;background:#333;border-radius:50%;transform:translate(-50%,-50%)}
+.gaugeText{font-size:10px;text-align:center;margin-top:5px;font-weight:700;color:#333}
+.thermo{position:absolute;left:2%;top:100px;width:50px;height:180px;border:5px solid #56616b;border-radius:28px;background:#fff;z-index:7}
+.thermoFill{position:absolute;left:14px;bottom:16px;width:12px;height:100px;background:#c54;border-radius:10px;transition:height .25s, background .3s}
+.thermoBulb{position:absolute;left:6px;bottom:2px;width:28px;height:28px;background:#c54;border-radius:50%;transition:background .3s}
+.thermoLabel{position:absolute;top:-25px;left:-4px;width:58px;text-align:center;font-size:10px;font-weight:700;color:#333}
+.bench{position:absolute;left:7%;right:7%;bottom:45px;height:18px;background:#4b535a;border:3px solid #222;border-radius:3px;box-shadow:0 4px 0 #89939c}
+
+/* アニメーション演出 */
+.burner-area{position:absolute;left:25%;right:25%;bottom:12px;height:30px;display:flex;justify-content:center;align-items:center;z-index:2;pointer-events:none}
+.flame-anim{width:40px;height:30px;background:radial-gradient(ellipse at bottom, #ef4444 0%, #f59e0b 60%, transparent 100%);border-radius:50% 50% 20% 20%;filter:blur(2px);opacity:0;transition:opacity 0.3s;animation:flicker 0.2s infinite alternate}
+.ice-anim{width:60px;height:20px;background:radial-gradient(circle, #a5f3fc 0%, #38bdf8 70%, transparent 100%);border-radius:10px;opacity:0;transition:opacity 0.3s;filter:blur(1px)}
+@keyframes flicker{0%{transform:scale(0.9) translateY(0)}100%{transform:scale(1.1) translateY(-3px)}}
+
+.blind-cover{position:absolute;inset:0;background:rgba(238,241,244,0.95);backdrop-filter:blur(4px);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:20;border-radius:8px;transition:opacity 0.3s}
+.blind-cover.hidden{display:none}
+.blind-icon{font-size:32px;margin-bottom:8px}
+.blind-text{font-size:13px;font-weight:bold;color:#475569}
+
+.particle{position:absolute;width:7px;height:7px;border-radius:50%;background:#246b9b;box-shadow:0 0 4px #246b9b66;transition:background 0.3s}
+.status{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:5px;position:relative}
+.metric{background:#fff;border:1px solid #b8c1c9;border-radius:6px;padding:8px;text-align:center;color:#1e293b}
+.metric small{display:block;color:#66717d}.metric strong{font-size:19px}
+.ratio{margin-top:8px;background:#f7f9fa;border:1px dashed #9aa5ae;padding:8px;border-radius:6px;font-size:12px;line-height:1.5;position:relative;color:#1e293b}
+.ratio b{color:#0d5e94}.equation{margin-top:8px;padding:8px;background:#eef6fc;border-left:5px solid var(--accent);border-radius:4px;font-family:Georgia,serif;font-size:16px;text-align:center;color:#1e293b}
+.graphWrap{padding:12px;position:relative}.graph{width:100%;height:250px;border:1px solid #b9c1c8;background:#fcfcfc;position:relative}
+.graph svg{width:100%;height:100%}.legend{font-size:11px;color:#66717d;margin-top:6px}
+
+.feedback{min-height:36px;font-weight:700;font-size:13px;margin-top:6px;padding:8px;border-radius:6px;text-align:center}
+.feedback.success{background:#d1fae5;color:#065f46;border:1px solid #a7f3d0}
+.feedback.fail{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+.footer{font-size:11px;color:#66717d;margin-top:14px;text-align:center}
+.tablebox{margin-top:8px;border:1px solid #c5ccd2;border-radius:6px;overflow:hidden;background:#fff;color:#1e293b}
+.tablebox h3{margin:0;padding:6px 9px;background:#edf0f2;font-size:12px}.tablebox th,.tablebox td{padding:4px;border-top:1px solid #e0e4e7;text-align:center}.tablebox th{font-weight:700}
+
+#confetti-canvas{position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:9999}
+.view-section{display:none}
+.view-section.active{display:block}
+
+@media(max-width:1100px){.main{grid-template-columns:280px 1fr}.right{grid-column:1/-1}}
+@media(max-width:760px){.main{grid-template-columns:1fr}.cylinder{width:330px}.right{grid-column:auto}}
+
+
+/* ===== v10: スマホ・タブレット最適化 ===== */
+html{-webkit-text-size-adjust:100%;touch-action:manipulation}
+button,select,input{font:inherit}
+button,.nav-btn,.sub-tab,.btn{touch-action:manipulation;-webkit-tap-highlight-color:rgba(23,105,170,.18);min-height:44px}
+input[type="range"]{min-height:36px;touch-action:pan-x}
+.nav-modes,.sub-tabs{-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.cylinder{touch-action:none}
+
+@media (max-width:760px){
+  body{background:#eef1f4}
+  .app{padding:8px;max-width:none;width:100%}
+  header{padding:10px 12px;border-width:2px;box-shadow:0 3px 0 #9aa3ab}
+  h1{font-size:18px;line-height:1.3}
+  .subtitle{font-size:10px;line-height:1.4}
+
+  /* 上位タブは1列に潰さず横スクロール。Google Sites iframeでも確実に押せる */
+  .nav-modes{display:flex;overflow-x:auto;overflow-y:hidden;gap:6px;padding:6px;margin-bottom:9px;white-space:nowrap;position:relative;z-index:50}
+  .nav-btn{flex:0 0 auto;min-width:175px;padding:10px 12px;font-size:13px}
+
+  .sub-tabs{display:flex;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;gap:6px;margin-bottom:9px;padding-bottom:3px;position:relative;z-index:45}
+  .sub-tab{flex:0 0 auto;min-width:165px;padding:9px 10px;font-size:12px}
+  #levelTabs .sub-tab{min-width:150px}
+
+  .main{display:flex;flex-direction:column;gap:10px;width:100%;min-width:0}
+  .panel,.right{width:100%;min-width:0;grid-column:auto}
+  .panel h2{font-size:14px;padding:9px 10px}
+  .controls{padding:10px}
+  .inputrow{grid-template-columns:minmax(0,1fr) 82px;gap:7px}
+  .num{width:82px;font-size:16px;min-height:40px}
+  .slider{width:100%}
+
+  .mission-hero{padding:12px;margin-bottom:9px}
+  .mission-hero-top{align-items:flex-start}
+  .mission-select-wrap{width:100%}
+  .mission-select-wrap select{width:100%;max-width:none;min-height:44px;font-size:13px}
+  .mission-story{padding:11px 12px}
+  .mission-story-title{font-size:16px}
+  .mission-story-desc{font-size:13px}
+  .mission-constraint{flex-direction:column;gap:5px}
+
+  /* 実験装置は画面幅に応じて縮尺 */
+  .lab{min-height:405px;padding:8px;overflow:hidden}
+  .cylinder{width:310px;max-width:78vw;height:350px;transform-origin:top center}
+  .gauge{width:86px;height:86px;right:1%;top:84px;border-width:5px}
+  .needle{height:31px}
+  .thermo{width:44px;height:145px;left:1%;top:92px;border-width:4px}
+  .thermoFill{left:12px;width:11px}
+  .thermoBulb{left:5px;width:26px;height:26px}
+  .thermoLabel{font-size:9px;width:48px}
+  .weights{max-width:52vw;left:24%;transform:translateX(-8%);overflow:visible}
+  .weight-icon{width:27px;height:34px}
+  .bench{left:4%;right:4%}
+
+  .status{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+  .metric{padding:6px 3px}.metric strong{font-size:16px}.metric small{font-size:9px}
+  .ratio{font-size:11px;overflow-wrap:anywhere}
+  .equation{font-size:15px;overflow-x:auto}
+  .graphWrap{padding:8px}
+  .graph{height:260px;min-width:0}
+  .legend{font-size:10px}
+  .tablebox{overflow-x:auto}
+  .tablebox table{min-width:330px}
+
+  /* モバイルではボタンを押しやすく */
+  .btn{padding:10px 8px}
+  .buttonrow{gap:6px}
+}
+
+@media (max-width:420px){
+  .app{padding:5px}
+  h1{font-size:16px}
+  .nav-btn{min-width:160px;font-size:12px}
+  .sub-tab{min-width:150px}
+  .lab{min-height:370px}
+  .cylinder{width:275px;max-width:76vw;height:325px}
+  .gauge{width:76px;height:76px;top:78px}
+  .thermo{height:132px;top:85px}
+  .graph{height:235px}
+}
+
+</style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+
+<div class="app">
+<header>
+  <div>
+    <h1>気体の法則 実験シミュレーター v10</h1>
+    <div class="subtitle">法則ごとの固定条件・1パラメーターミッション・V–Tグラフ対応</div>
+  </div>
+</header>
+
+<!-- トップレベル ナビゲーションタブ -->
+<nav class="nav-modes">
+  <button class="nav-btn active" id="btnModeExplore">🧪 自由探索モード</button>
+  <button class="nav-btn" id="btnModeMission">🎯 ミッションモード（各レベル ランダム10問）</button>
+</nav>
+
+<!-- 自由探索モード用 サブタブ -->
+<div id="exploreView" class="view-section active">
+  <div class="sub-tabs">
+    <button class="sub-tab active" data-law="boyle">ボイルの法則 (温度T一定)</button>
+    <button class="sub-tab" data-law="charles">シャルルの法則 (圧力P一定)</button>
+    <button class="sub-tab" data-law="combined">ボイル・シャルルの法則 (自由操作)</button>
+  </div>
+</div>
+
+<!-- ミッションモード用 レベル選択タブ ＆ メインストーリーUIカード -->
+<div id="missionView" class="view-section">
+  <!-- レベル選択タブ -->
+  <div class="sub-tabs" id="levelTabs">
+    <button class="sub-tab active" data-lvl="L0">レベル0 (基本装置)</button>
+    <button class="sub-tab" data-lvl="L1">レベル1 (深海/水圧艇)</button>
+    <button class="sub-tab" data-lvl="L2">レベル2 (熱気球)</button>
+    <button class="sub-tab" data-lvl="L3">レベル3 (タイヤ/定積)</button>
+    <button class="sub-tab" data-lvl="EX">EXレベル (宇宙船)</button>
+  </div>
+
+  <div id="missionHero" class="mission-hero">
+    <div class="mission-hero-top">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="background:#f59e0b;color:#1e293b;font-weight:900;padding:4px 10px;border-radius:20px;font-size:12px;" id="missionBadge">MISSION</span>
+        <div class="mission-select-wrap">
+          <select id="missionSelect"></select>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:12px;color:#cbd5e1;">クリア状況: <strong id="score" style="color:#10b981;font-size:15px;">0 / 50</strong></span>
+        <div class="progress"><div id="progressBar"></div></div>
+      </div>
+    </div>
+    <div class="mission-story">
+      <div class="mission-story-title" id="missionTitle">ミッションタイトル</div>
+      <p class="mission-story-desc" id="missionText">ストーリー内容</p>
+      <div class="mission-constraint">
+        <div>操作可能: <strong id="allowedControlsText" style="color:#f59e0b;">ピストン (体積)</strong></div>
+        <div>固定条件: <span id="fixedConditionText">条件に応じて固定</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 共通メインコンテンツ -->
+<div class="main">
+  <!-- 左パネル: コントロール -->
+  <section class="panel">
+    <h2>実験条件・操作</h2>
+    <div class="controls">
+      <div class="control" id="ctrlT">
+        <label>温度 <span class="value" id="tempVal"></span></label>
+        <div class="inputrow"><input class="slider" id="temp" type="range" min="150" max="600" step="1"><input class="num" id="tempNum" type="number" min="150" max="600" step="1"></div>
+        <div style="display:flex;gap:4px;margin-top:4px">
+          <button class="btn burner-btn" style="flex:1;font-size:10px;" id="btnHeat">🔥 加熱(+50K)</button>
+          <button class="btn burner-btn" style="flex:1;font-size:10px;" id="btnCool">❄️ 冷却(-50K)</button>
+        </div>
+      </div>
+
+      <div class="control" id="ctrlP">
+        <label>圧力 <span class="value" id="pressureVal"></span></label>
+        <div class="inputrow"><input class="slider" id="pressure" type="range" min="0.5" max="4" step="0.01"><input class="num" id="pressureNum" type="number" min="0.5" max="4" step="0.01"></div>
+      </div>
+
+      <div class="control" id="ctrlV">
+        <label>体積 <span class="value" id="volumeVal"></span></label>
+        <div class="inputrow"><input class="slider" id="volume" type="range" min="1.5" max="24" step="0.05"><input class="num" id="volumeNum" type="number" min="1.5" max="24" step="0.05"></div>
+      </div>
+
+      <div class="lockbox" id="lockbox"></div>
+      <div class="hint" id="modeHint"></div>
+
+      <div class="buttonrow" style="margin-top:10px">
+        <button class="btn primary" id="record">測定点を記録</button>
+        <button class="btn" id="reset">リセット</button>
+      </div>
+      <button class="btn" style="width:100%;margin-top:7px" id="saveRef">現在を基準状態にする</button>
+    </div>
+  </section>
+
+  <!-- 中央パネル: 装置＆アニメーション -->
+  <section class="panel">
+    <h2>実験装置 <span style="font-size:10px;font-weight:normal;color:#666" id="dragTip">※ピストン直接ドラッグ可</span></h2>
+    <div class="lab" id="labArea">
+      <div class="labTitle" id="labTitle">密閉シリンダー</div>
+      
+      <!-- 特殊オブジェクトグラフィック -->
+      <div class="balloon-graphic" id="balloonGraphic"></div>
+      <div class="tire-graphic" id="tireGraphic"><div class="tire-rim"></div></div>
+
+      <div class="thermo">
+        <div class="thermoLabel">温度計</div><div class="thermoFill" id="thermoFill"></div><div class="thermoBulb" id="thermoBulb"></div>
+      </div>
+      <div class="gauge">
+        <div class="needle" id="needle"></div><div class="hub"></div>
+        <div style="position:absolute;top:10px;left:0;right:0;text-align:center;font-size:9px">圧力計</div>
+        <div class="gaugeText" style="position:absolute;bottom:10px;left:0;right:0" id="gaugeUnit">atm</div>
+      </div>
+      <div class="cylinder" id="cylinder">
+        <div class="weights" id="weights"></div>
+        <div class="rod" id="rod"></div>
+        <div class="tube" id="tube"></div>
+        <div class="gas" id="gas"></div>
+        <div class="piston" id="piston">
+          <div class="piston-handle"></div>
+        </div>
+      </div>
+      <div class="burner-area">
+        <div class="flame-anim" id="flameAnim"></div>
+        <div class="ice-anim" id="iceAnim"></div>
+      </div>
+      <div class="bench" id="bench"></div>
+    </div>
+
+    <div class="status">
+      <div class="metric"><small>圧力 P</small><strong id="mP">1.00</strong> <span id="unitP">atm</span></div>
+      <div class="metric"><small>体積 V</small><strong id="mV">6.00</strong> <span id="unitV">L</span></div>
+      <div class="metric"><small>温度 T</small><strong id="mT">300</strong> K</div>
+      <div class="blind-cover hidden" id="statusBlind">
+        <div class="blind-icon">🔒</div>
+        <div class="blind-text">予想中（回答・答え合わせで開放）</div>
+      </div>
+    </div>
+    
+    <div class="ratio" id="ratio"></div>
+    <div class="equation" id="equation">P₁V₁ = P₂V₂</div>
+
+    <div class="tablebox">
+      <h3>測定記録</h3>
+      <table>
+        <thead><tr><th>#</th><th>P (atm)</th><th>V (L)</th><th>T (K)</th></tr></thead>
+        <tbody id="dataBody"><tr><td colspan="4">「測定点を記録」で追加</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 右パネル: グラフ ＆ ミッション制御ボタン -->
+  <section class="panel right">
+    <h2 id="graphTitle">P − V グラフ</h2>
+    <div class="graphWrap">
+      <div class="graph">
+        <svg id="graphSvg" viewBox="0 0 380 250" preserveAspectRatio="none"></svg>
+        <div class="blind-cover hidden" id="graphBlind">
+          <div class="blind-icon">🔒</div>
+          <div class="blind-text">予想中（回答・答え合わせで開放）</div>
+        </div>
+      </div>
+      <div class="legend">現在の状態：● 測定点：○ 基準状態：◆</div>
+    </div>
+
+    <!-- ミッション操作・判定専用カード -->
+    <div class="panel" id="missionActionPanel" style="margin-top:10px; padding:12px; display:none;">
+      <h2 style="background:none;border:none;padding:0;margin-bottom:8px;">ミッションアクション</h2>
+      <div class="missionState" id="missionState">「スタート」を押してミッションを開始してください。</div>
+      <div class="feedback" id="feedback" style="display:none;"></div>
+      <button class="btn primary" style="width:100%;margin-top:6px;" id="startMission">▶ ミッションスタート（ブラインド開始）</button>
+      <button class="btn primary" style="width:100%;margin-top:6px;background:#10b981;border-color:#059669;" id="check" disabled>🎯 回答する（目隠し開放＆判定）</button>
+      <button class="btn" style="width:100%;margin-top:6px" id="next" disabled>次のミッションへ進む ➔</button>
+    </div>
+  </section>
+</div>
+
+<div class="footer">教育用モデル：理想気体の状態方程式（PV/T = 一定）をビジュアル化したインタラクティブ学習ツール</div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const state = {
+  appMode: "explore",
+  law: "boyle",
+  currentLvl: "L0",
+  T:300, P:1, V:6,
+  ref:{T:300,P:1,V:6},
+  points:[],
+  missionIdx:0,
+  score:0,
+  clearedMissions: new Set(),
+  missionActive:false,
+  missionCleared:false,
+  blind:false
+};
+
+// 各レベル10問をページ読み込み時にランダム生成する。
+// P・V・操作解は 0.5 刻み、温度は 25 K / 50 K 刻みを中心に生成する。
+let allMissions = [];
+
+const levelLabels = {L0:'【レベル0】',L1:'【レベル1】',L2:'【レベル2】',L3:'【レベル3】',EX:'【EXレベル】'};
+const levelThemes = {
+  L0:'基本装置', L1:'深海・水圧', L2:'熱気球・熱膨張', L3:'タイヤ・定積', EX:'宇宙船・複合変化'
+};
+
+function halfValues(min,max){
+  const a=[]; for(let x=min;x<=max+1e-9;x+=0.5) a.push(Math.round(x*2)/2); return a;
+}
+function multiples(start,end,step){
+  const a=[]; for(let x=start;x<=end+1e-9;x+=step) a.push(x); return a;
+}
+function isHalf(v){ return Math.abs(v*2-Math.round(v*2))<1e-8; }
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function shuffle(arr){
+  arr=[...arr];
+  for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
+  return arr;
+}
+function sampleUnique(arr,n){ return shuffle(arr).slice(0,n); }
+function fmtHalf(v){ return Number(v).toFixed(1); }
+
+function buildBoyleCandidates(level='L1'){
+  const c=[];
+  const baseTemps=[250,300,350,400];
+  const basePs=[1.0,1.5,2.0];
+  const baseVs=[4.0,6.0,8.0];
+  const targetPs=halfValues(0.5,4.0);
+  const targetVs=halfValues(1.5,12.0);
+  for(const T of baseTemps) for(const P0 of basePs) for(const V0 of baseVs){
+    const K=P0*V0;
+    for(const targetP of targetPs){
+      const answerV=K/targetP;
+      if(answerV>=1.5&&answerV<=12&&isHalf(answerV)&&Math.abs(answerV-V0)>0.01){
+        c.push({law:'boyle',control:['V'],setup:{T,P:P0,V:V0},target:{P:targetP},answer:{V:answerV},
+          text:`温度 ${T} K 一定。圧力を ${fmtHalf(targetP)} atm にしてください。体積だけを操作します。`});
+      }
+    }
+    for(const targetV of targetVs){
+      const answerP=K/targetV;
+      if(answerP>=0.5&&answerP<=4&&isHalf(answerP)&&Math.abs(answerP-P0)>0.01){
+        c.push({law:'boyle',control:['P'],setup:{T,P:P0,V:V0},target:{V:targetV},answer:{P:answerP},
+          text:`温度 ${T} K 一定。体積を ${fmtHalf(targetV)} L にしてください。圧力だけを操作します。`});
+      }
+    }
+  }
+  return c;
+}
+
+function buildCharlesCandidates(){
+  const c=[];
+  const basePs=[0.5,1.0,1.5,2.0];
+  const baseTs=[200,250,300,350,400];
+  const baseVs=[4.0,6.0,8.0];
+  const targetVs=halfValues(2.0,12.0);
+  const targetTs=multiples(150,600,25);
+  for(const P of basePs) for(const T0 of baseTs) for(const V0 of baseVs){
+    const ratio=V0/T0;
+    for(const targetV of targetVs){
+      const answerT=targetV/ratio;
+      if(answerT>=150&&answerT<=600&&Math.abs(answerT/25-Math.round(answerT/25))<1e-8&&Math.abs(answerT-T0)>0.01){
+        c.push({law:'charles',control:['T'],setup:{T:T0,P,V:V0},target:{V:targetV},answer:{T:answerT},
+          text:`圧力 ${fmtHalf(P)} atm 一定。体積を ${fmtHalf(targetV)} L にしてください。温度だけを操作します。`});
+      }
+    }
+    for(const targetT of targetTs){
+      const answerV=ratio*targetT;
+      if(answerV>=1.5&&answerV<=12&&isHalf(answerV)&&Math.abs(answerV-V0)>0.01){
+        c.push({law:'charles',control:['V'],setup:{T:T0,P,V:V0},target:{T:targetT},answer:{V:answerV},
+          text:`圧力 ${fmtHalf(P)} atm 一定。温度を ${targetT} K にしてください。体積だけを操作します。`});
+      }
+    }
+  }
+  return c;
+}
+
+function buildIsochoricCandidates(){
+  const c=[];
+  const baseVs=[4.0,6.0,8.0];
+  const baseTs=[200,300,400];
+  const basePs=[1.0,1.5,2.0];
+  const targetPs=halfValues(0.5,4.0);
+  const targetTs=multiples(150,600,25);
+  for(const V of baseVs) for(const T0 of baseTs) for(const P0 of basePs){
+    for(const targetP of targetPs){
+      const answerT=T0*(targetP/P0);
+      if(answerT>=150&&answerT<=600&&Math.abs(answerT/25-Math.round(answerT/25))<1e-8&&Math.abs(answerT-T0)>0.01){
+        c.push({law:'combined',forceVFix:true,control:['T'],setup:{T:T0,P:P0,V},target:{P:targetP},answer:{T:answerT},
+          text:`体積 ${fmtHalf(V)} L 一定。圧力を ${fmtHalf(targetP)} atm にしてください。温度だけを操作します。`});
+      }
+    }
+    for(const targetT of targetTs){
+      const answerP=P0*(targetT/T0);
+      if(answerP>=0.5&&answerP<=4&&isHalf(answerP)&&Math.abs(answerP-P0)>0.01){
+        c.push({law:'combined',forceVFix:true,control:['P'],setup:{T:T0,P:P0,V},target:{T:targetT},answer:{P:answerP},
+          text:`体積 ${fmtHalf(V)} L 一定。温度を ${targetT} K にしてください。圧力だけを操作します。`});
+      }
+    }
+  }
+  return c;
+}
+
+function buildCombinedCandidates(){
+  const c=[];
+  const ref={T:300,P:1.0,V:6.0};
+  const fixedTs=[150,300,450,600];
+  const pAnswers=halfValues(0.5,4.0);
+  const vAnswers=halfValues(1.5,12.0);
+  for(const T of fixedTs){
+    // 圧力だけを操作して目標体積へ
+    const initialP=1.0;
+    const initialV=ref.V*(T/ref.T)*(ref.P/initialP);
+    if(isHalf(initialV)&&initialV>=1.5&&initialV<=24){
+      for(const ansP of pAnswers){
+        const targetV=ref.V*(T/ref.T)*(ref.P/ansP);
+        if(targetV>=1.5&&targetV<=24&&isHalf(targetV)&&Math.abs(ansP-initialP)>0.01){
+          c.push({law:'combined',control:['P'],ref:{...ref},setup:{T,P:initialP,V:initialV},target:{V:targetV},answer:{P:ansP},
+            text:`温度 ${T} K。体積を ${fmtHalf(targetV)} L にしてください。圧力だけを操作します。`});
+        }
+      }
+    }
+    // 体積だけを操作して目標圧力へ
+    const initialV2=6.0;
+    const initialP2=ref.P*ref.V*T/(ref.T*initialV2);
+    if(isHalf(initialP2)&&initialP2>=0.5&&initialP2<=4){
+      for(const ansV of vAnswers){
+        const targetP=ref.P*ref.V*T/(ref.T*ansV);
+        if(targetP>=0.5&&targetP<=4&&isHalf(targetP)&&Math.abs(ansV-initialV2)>0.01){
+          c.push({law:'combined',control:['V'],ref:{...ref},setup:{T,P:initialP2,V:initialV2},target:{P:targetP},answer:{V:ansV},
+            text:`温度 ${T} K。圧力を ${fmtHalf(targetP)} atm にしてください。体積だけを操作します。`});
+        }
+      }
+    }
+  }
+  return c;
+}
+
+function decorateMission(m,id,lvl,index){
+  const storyPrefix={
+    L0:'基本チャレンジ',
+    L1:pick(['深海レスキュー','潜水艇エアタンク','水圧チャレンジ','海底観測装置']),
+    L2:pick(['熱気球フライト','高空観測気球','温室ガス実験','熱膨張チャレンジ']),
+    L3:pick(['タイヤ空気圧','密閉容器テスト','圧力鍋テスト','定積安全試験']),
+    EX:pick(['宇宙船エアロック','惑星探査モジュール','宇宙実験室','複合則マスター'])
+  }[lvl];
+  return {...m,id,lvl,level:levelLabels[lvl],title:`${index+1}. ${storyPrefix}`};
+}
+
+function generateAllMissions(){
+  const result=[];
+  const boyle=buildBoyleCandidates();
+  const charles=buildCharlesCandidates();
+  const iso=buildIsochoricCandidates();
+  const combined=buildCombinedCandidates();
+
+  // L0 はボイル5問＋シャルル5問をシャッフル
+  const l0=shuffle([...sampleUnique(boyle,5),...sampleUnique(charles,5)]);
+  const sets={
+    L0:l0,
+    L1:sampleUnique(boyle,10),
+    L2:sampleUnique(charles,10),
+    L3:sampleUnique(iso,10),
+    EX:sampleUnique(combined,10)
+  };
+  let id=0;
+  for(const lvl of ['L0','L1','L2','L3','EX']){
+    sets[lvl].forEach((m,i)=>result.push(decorateMission(m,id++,lvl,i)));
+  }
+  return result;
+}
+
+allMissions = generateAllMissions();
+
+function clamp(v,min,max){ return Math.min(max,Math.max(min,v)); }
+function currentMission(){ return allMissions[state.missionIdx]; }
+
+// 初期化
+window.addEventListener("DOMContentLoaded", () => {
+  setupEvents();
+  initParticles();
+  updateModeView();
+  syncUI();
+});
+
+function setupEvents(){
+  // ナビ切り替え：スマホ/iOS/Google Sites iframeでも安定するよう click を明示登録
+  const tap = (el, fn) => {
+    if(!el) return;
+    el.addEventListener('click', (e) => { e.preventDefault(); fn(e); }, {passive:false});
+  };
+  tap($('btnModeExplore'), () => switchAppMode('explore'));
+  tap($('btnModeMission'), () => switchAppMode('mission'));
+
+  // 探索モード サブタブ。e.target ではなく currentTarget/btn を使用し、タップ位置に左右されないようにする
+  document.querySelectorAll('#exploreView .sub-tab').forEach(btn => {
+    tap(btn, () => {
+      document.querySelectorAll('#exploreView .sub-tab').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      state.law = btn.dataset.law;
+      syncUI();
+      btn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+    });
+  });
+
+  // ミッション レベルタブ
+  document.querySelectorAll('#levelTabs .sub-tab').forEach(btn => {
+    tap(btn, () => {
+      document.querySelectorAll('#levelTabs .sub-tab').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      state.currentLvl = btn.dataset.lvl;
+      populateMissionSelect();
+      loadSelectedMission();
+      btn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+    });
+  });
+
+  $('missionSelect').onchange = (e) => {
+    state.missionIdx = parseInt(e.target.value);
+    loadSelectedMission();
+  };
+
+  // スライダー＆数値入力バインド
+  const bindInput = (sliderId, numId, prop) => {
+    const s = $(sliderId), n = $(numId);
+    s.oninput = () => { handleUserChange(prop, parseFloat(s.value)); };
+    n.onchange = () => { handleUserChange(prop, parseFloat(n.value)); };
+  };
+  bindInput('temp', 'tempNum', 'T');
+  bindInput('pressure', 'pressureNum', 'P');
+  bindInput('volume', 'volumeNum', 'V');
+
+  // 加熱/冷却ボタン
+  $('btnHeat').onclick = () => handleUserChange('T', state.T + 50);
+  $('btnCool').onclick = () => handleUserChange('T', state.T - 50);
+
+  // ボタン類
+  $('record').onclick = recordPoint;
+  $('reset').onclick = resetState;
+  $('saveRef').onclick = () => { state.ref = {T:state.T, P:state.P, V:state.V}; syncUI(); };
+
+  // ミッションアクション
+  $('startMission').onclick = startMission;
+  $('check').onclick = checkMission;
+  $('next').onclick = nextMission;
+
+  // ピストンドラッグ制御
+  setupDrag();
+}
+
+function switchAppMode(mode){
+  state.appMode = mode;
+  if(mode === 'explore'){
+    $('btnModeExplore').classList.add('active');
+    $('btnModeMission').classList.remove('active');
+    $('exploreView').classList.add('active');
+    $('missionView').classList.remove('active');
+    $('missionActionPanel').style.display = 'none';
+    setBlind(false);
+  } else {
+    $('btnModeExplore').classList.remove('active');
+    $('btnModeMission').classList.add('active');
+    $('exploreView').classList.remove('active');
+    $('missionView').classList.add('active');
+    $('missionActionPanel').style.display = 'block';
+    populateMissionSelect();
+    loadSelectedMission();
+  }
+  syncUI();
+}
+
+function populateMissionSelect(){
+  const sel = $('missionSelect');
+  sel.innerHTML = '';
+  allMissions.filter(m => m.lvl === state.currentLvl).forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    opt.textContent = `${m.title} ${state.clearedMissions.has(m.id) ? '✓' : ''}`;
+    sel.appendChild(opt);
+  });
+  state.missionIdx = parseInt(sel.value || 0);
+}
+
+function loadSelectedMission(){
+  const m = currentMission();
+  if(!m) return;
+  state.law = m.law;
+  state.T = m.setup.T; state.P = m.setup.P; state.V = m.setup.V;
+  state.ref = m.ref ? {...m.ref} : {...m.setup};
+  state.missionActive = false;
+  state.missionCleared = false;
+  setBlind(false);
+
+  $('missionTitle').textContent = `${m.level} ${m.title}`;
+  $('missionText').textContent = m.text;
+  $('allowedControlsText').textContent = (m.control[0]==='T'?'温度':m.control[0]==='P'?'圧力':'体積') + ' のみ';
+  $('fixedConditionText').textContent = m.forceVFix ? "体積固定（定積変化）" : (state.law==='boyle'?'温度一定':state.law==='charles'?'圧力一定':'自由');
+
+  $('missionState').className = "missionState";
+  $('missionState').textContent = "「スタート」を押してミッションを開始してください。";
+  $('feedback').style.display = "none";
+  $('startMission').disabled = false;
+  $('check').disabled = true;
+  $('next').disabled = true;
+
+  syncUI();
+}
+
+function startMission(){
+  state.missionActive = true;
+  setBlind(true);
+  $('missionState').className = "missionState active";
+  $('missionState').textContent = "目隠し中！理論計算をもとに数値を調整し「回答する」を押してください。";
+  $('startMission').disabled = true;
+  $('check').disabled = false;
+}
+
+function setBlind(b){
+  state.blind = b;
+  const m = currentMission();
+  const answerProp = (state.appMode==='mission' && m && m.control && m.control.length) ? m.control[0] : null;
+
+  // グラフはミッション中に完全マスク。
+  if(b) $('graphBlind').classList.remove('hidden');
+  else $('graphBlind').classList.add('hidden');
+
+  // 状態全体は隠さず、「答えとして操作する1パラメーター」だけを隠す。
+  $('statusBlind').classList.add('hidden');
+  ['T','P','V'].forEach(prop=>{
+    const map={
+      T:{label:'tempVal',num:'tempNum',metric:'mT'},
+      P:{label:'pressureVal',num:'pressureNum',metric:'mP'},
+      V:{label:'volumeVal',num:'volumeNum',metric:'mV'}
+    }[prop];
+    $(map.label).classList.remove('answerMasked');
+    $(map.num).classList.remove('answerInputMasked');
+    $(map.metric).classList.remove('answerMasked');
+  });
+
+  $('ratio').classList.toggle('resultHidden', b);
+  $('equation').classList.toggle('resultHidden', b);
+
+  if(b && answerProp){
+    const map={
+      T:{label:'tempVal',num:'tempNum',metric:'mT'},
+      P:{label:'pressureVal',num:'pressureNum',metric:'mP'},
+      V:{label:'volumeVal',num:'volumeNum',metric:'mV'}
+    }[answerProp];
+    $(map.label).classList.add('answerMasked');
+    $(map.num).classList.add('answerInputMasked');
+    $(map.metric).classList.add('answerMasked');
+  }
+}
+
+function checkMission(){
+  const m = currentMission();
+  setBlind(false);
+  state.missionActive = false;
+
+  let pass = true;
+  if(m.target.T !== undefined && Math.abs(state.T - m.target.T) > 5) pass = false;
+  if(m.target.P !== undefined && Math.abs(state.P - m.target.P) > 0.08) pass = false;
+  if(m.target.V !== undefined && Math.abs(state.V - m.target.V) > 0.2) pass = false;
+
+  const fb = $('feedback');
+  fb.style.display = "block";
+  if(pass){
+    fb.className = "feedback success";
+    fb.textContent = "🎉 大正解！見事に実験条件をクリアしました！";
+    state.clearedMissions.add(m.id);
+    state.score = state.clearedMissions.size;
+    $('score').textContent = `${state.score} / 50`;
+    $('progressBar').style.width = `${(state.score/50)*100}%`;
+    $('missionState').className = "missionState done";
+    $('missionState').textContent = "ミッションクリア！次のミッションに進めます。";
+    $('check').disabled = true;
+    $('next').disabled = false;
+    triggerConfetti();
+    populateMissionSelect();
+  } else {
+    fb.className = "feedback fail";
+    fb.textContent = "❌ 残念！計算と誤差があります。もう一度挑戦してみよう。";
+    $('startMission').disabled = false;
+    $('check').disabled = true;
+  }
+}
+
+function nextMission(){
+  const current=currentMission();
+  const levelOrder=['L0','L1','L2','L3','EX'];
+  const levelList=allMissions.filter(m=>m.lvl===current.lvl);
+  const pos=levelList.findIndex(m=>m.id===current.id);
+
+  if(pos < levelList.length-1){
+    state.missionIdx=levelList[pos+1].id;
+    $('missionSelect').value=state.missionIdx;
+    loadSelectedMission();
+    return;
+  }
+
+  const li=levelOrder.indexOf(current.lvl);
+  if(li < levelOrder.length-1){
+    state.currentLvl=levelOrder[li+1];
+    document.querySelectorAll('#levelTabs .sub-tab').forEach(b=>b.classList.toggle('active',b.dataset.lvl===state.currentLvl));
+    populateMissionSelect();
+    loadSelectedMission();
+  } else {
+    $('missionState').className='missionState done';
+    $('missionState').textContent='全レベルのミッション終了！ページを再読み込みすると新しいランダム問題に挑戦できます。';
+    $('next').disabled=true;
+  }
+}
+
+function handleUserChange(prop, val){
+  val = clamp(val, prop==='T'?150:prop==='P'?0.5:1.5, prop==='T'?600:prop==='P'?4:24);
+  const m = currentMission();
+
+  // ミッション中は指定された1変数以外からの変更を拒否する。
+  if(state.appMode === 'mission'){
+    if(!m || !m.control || prop !== m.control[0]) return;
+    if(m.forceVFix && prop === 'V') return;
+  }
+
+  if(state.law === 'boyle'){
+    // 温度は常に基準温度で固定。
+    state.T = state.ref.T;
+    if(prop==='V'){
+      state.V = val;
+      state.P = (state.ref.P * state.ref.V) / state.V;
+    } else if(prop==='P'){
+      state.P = val;
+      state.V = (state.ref.P * state.ref.V) / state.P;
+    }
+  } else if(state.law === 'charles'){
+    // 圧力は常に基準圧力で固定。
+    state.P = state.ref.P;
+    if(prop==='T'){
+      state.T = val;
+      state.V = (state.ref.V / state.ref.T) * state.T;
+    } else if(prop==='V'){
+      state.V = val;
+      state.T = (state.ref.T / state.ref.V) * state.V;
+    }
+  } else {
+    if(m && m.forceVFix){
+      // 定積ミッション：V固定、T操作でPが変化。
+      state.V = state.ref.V;
+      if(prop==='T'){
+        state.T = val;
+        state.P = state.ref.P * (state.T/state.ref.T);
+      } else if(prop==='P'){
+        state.P = val;
+        state.T = state.ref.T * (state.P/state.ref.P);
+      }
+    } else {
+      // 複合則。1つを操作したとき他の1つは基準/現在値から自動計算。
+      if(prop==='T'){
+        state.T = val;
+        state.V = state.ref.V * (state.T/state.ref.T) * (state.ref.P/state.P);
+      } else if(prop==='V'){
+        state.V = val;
+        state.P = state.ref.P * state.ref.V * state.T / (state.ref.T * state.V);
+      } else if(prop==='P'){
+        state.P = val;
+        state.V = state.ref.V * (state.T/state.ref.T) * (state.ref.P/state.P);
+      }
+    }
+  }
+
+  // 操作値は範囲内に。従属変数は法則優先で表示範囲内に収める。
+  state.T = clamp(state.T,150,600);
+  state.P = clamp(state.P,0.5,4);
+  state.V = clamp(state.V,1.5,24);
+  syncUI();
+}
+
+function syncUI(){
+  // スライダー・数値同期
+  $('temp').value = state.T.toFixed(0); $('tempNum').value = state.T.toFixed(0); $('tempVal').textContent = `${state.T.toFixed(0)} K`;
+  $('pressure').value = state.P.toFixed(2); $('pressureNum').value = state.P.toFixed(2); $('pressureVal').textContent = `${state.P.toFixed(2)} atm`;
+  $('volume').value = state.V.toFixed(2); $('volumeNum').value = state.V.toFixed(2); $('volumeVal').textContent = `${state.V.toFixed(2)} L`;
+
+  $('mP').textContent = state.P.toFixed(2);
+  $('mV').textContent = state.V.toFixed(2);
+  $('mT').textContent = state.T.toFixed(0);
+
+
+  // 法則ごとの固定条件とグラフ名を明示。
+  if(state.law === 'boyle'){
+    $('lockbox').innerHTML = `固定条件：<strong>温度 T = ${state.ref.T.toFixed(0)} K</strong>（一定）`;
+    $('modeHint').textContent = '温度を一定に保ち、圧力 P と体積 V の反比例を調べます。';
+    $('graphTitle').textContent = 'P − V グラフ';
+  } else if(state.law === 'charles'){
+    $('lockbox').innerHTML = `固定条件：<strong>圧力 P = ${state.ref.P.toFixed(2)} atm</strong>（一定）`;
+    $('modeHint').textContent = '圧力を一定に保ち、絶対温度 T と体積 V の比例を調べます。';
+    $('graphTitle').textContent = 'V − T グラフ（横軸 T / K、縦軸 V / L）';
+  } else {
+    $('lockbox').innerHTML = '固定条件：<strong>気体の量 n 一定</strong>';
+    $('modeHint').textContent = '温度・圧力・体積の関係を PV/T = 一定として調べます。';
+    $('graphTitle').textContent = 'P − V グラフ（現在温度の等温線）';
+  }
+
+  updateModeView();
+
+  // テーマ・ビジュアル変更
+  const lab = $('labArea');
+  const balloon = $('balloonGraphic');
+  const tire = $('tireGraphic');
+  const cylinder = $('cylinder');
+  lab.className = 'lab'; balloon.style.display = 'none'; tire.style.display = 'none'; cylinder.style.display = 'block';
+
+  if(state.appMode === 'mission'){
+    if(state.currentLvl === 'L1'){ lab.classList.add('theme-ocean'); $('labTitle').textContent = "深海潜水探査艇"; }
+    else if(state.currentLvl === 'L2'){ lab.classList.add('theme-balloon'); $('labTitle').textContent = "高空熱気球"; balloon.style.display = 'block'; cylinder.style.display = 'none'; }
+    else if(state.currentLvl === 'L3'){ lab.classList.add('theme-tire'); $('labTitle').textContent = "密閉自動車タイヤ"; tire.style.display = 'block'; cylinder.style.display = 'none'; }
+    else if(state.currentLvl === 'EX'){ lab.classList.add('theme-space'); $('labTitle').textContent = "宇宙船実験モジュール"; }
+    else { $('labTitle').textContent = "標準実験シリンダー"; }
+  } else {
+    $('labTitle').textContent = "標準実験シリンダー";
+  }
+
+  // 特殊グラフィックのスケールアニメーション
+  if(balloon.style.display === 'block'){
+    const scale = Math.pow(state.V / 6.0, 1/3);
+    balloon.style.transform = `scale(${scale})`;
+  }
+  if(tire.style.display === 'block'){
+    const scale = 1 + (state.P - 1.0) * 0.05;
+    tire.style.transform = `scale(${scale})`;
+  }
+
+  // ゲージ・温度計・ピストン描画
+  $('needle').style.transform = `translateX(-50%) rotate(${((state.P - 0.5) / 3.5) * 180 - 90}deg)`;
+  $('thermoFill').style.height = `${((state.T - 150) / 450) * 120}px`;
+
+  // ピストン位置（体積に連動）
+  const pistonTop = 270 - (state.V / 24) * 210;
+  $('piston').style.top = `${pistonTop}px`;
+  $('rod').style.top = `${pistonTop - 68}px`;
+  $('gas').style.height = `${300 - pistonTop}px`;
+
+  // 重り描画
+  const weightsContainer = $('weights');
+  weightsContainer.innerHTML = '';
+  const numWeights = Math.round(state.P * 2);
+  for(let i=0; i<numWeights; i++){
+    const w = document.createElement('div');
+    w.className = 'weight-icon';
+    weightsContainer.appendChild(w);
+  }
+
+  // 数式・比率
+  if(state.law==='boyle'){
+    $('equation').textContent = `P × V = ${(state.P*state.V).toFixed(1)} (一定)`;
+    $('ratio').innerHTML = `基準: P₀V₀ = ${(state.ref.P*state.ref.V).toFixed(1)} <br>現在: PV = <b>${(state.P*state.V).toFixed(1)}</b>`;
+  } else if(state.law==='charles'){
+    $('equation').textContent = `V / T = ${(state.V/state.T).toFixed(3)} (一定)`;
+    $('ratio').innerHTML = `基準: V₀/T₀ = ${(state.ref.V/state.ref.T).toFixed(3)} <br>現在: V/T = <b>${(state.V/state.T).toFixed(3)}</b>`;
+  } else {
+    $('equation').textContent = `PV / T = ${(state.P*state.V/state.T).toFixed(3)} (一定)`;
+    $('ratio').innerHTML = `基準: P₀V₀/T₀ = ${(state.ref.P*state.ref.V/state.ref.T).toFixed(3)} <br>現在: PV/T = <b>${(state.P*state.V/state.T).toFixed(3)}</b>`;
+  }
+
+  drawGraph();
+  updateParticles();
+  if(state.blind) setBlind(true);
+}
+
+function updateModeView(){
+  // 自由探索：法則ごとに「一定にする量」を明確に固定。
+  // ボイル：T固定。PとVはどちらからでも操作可能。
+  // シャルル：P固定。TとVはどちらからでも操作可能。
+  // ボイル・シャルル：T/P/Vを操作可能（通常探索）。
+  let allowT=false, allowP=false, allowV=false;
+  const m = currentMission();
+
+  if(state.appMode === 'explore'){
+    if(state.law === 'boyle'){
+      allowT = false; allowP = true; allowV = true;
+    } else if(state.law === 'charles'){
+      allowT = true; allowP = false; allowV = true;
+    } else {
+      allowT = true; allowP = true; allowV = true;
+    }
+  } else {
+    // ミッションでは必ず1つだけ操作可能。
+    const only = m && m.control && m.control.length ? m.control[0] : null;
+    allowT = only === 'T';
+    allowP = only === 'P';
+    allowV = only === 'V' && !(m && m.forceVFix);
+  }
+
+  $('ctrlT').querySelectorAll('input, button').forEach(el => el.disabled = !allowT);
+  $('ctrlV').querySelectorAll('input, button').forEach(el => el.disabled = !allowV);
+  $('ctrlP').querySelectorAll('input, button').forEach(el => el.disabled = !allowP);
+
+  // ピストンの直接ドラッグ表示も操作可否に合わせる。
+  $('dragTip').textContent = allowV ? '※ピストン直接ドラッグ可' : '※体積は自動変化';
+
+  // ミッションでは操作値も0.5刻みに統一する。
+  if(state.appMode === 'mission'){
+    ['temp','tempNum','pressure','pressureNum','volume','volumeNum'].forEach(id=>$(id).step='0.5');
+  } else {
+    $('temp').step=$('tempNum').step='1';
+    $('pressure').step=$('pressureNum').step='0.01';
+    $('volume').step=$('volumeNum').step='0.05';
+  }
+}
+
+// 粒子アニメーション
+let particles = [];
+function initParticles(){
+  const gas = $('gas');
+  gas.innerHTML = '';
+  particles = [];
+  for(let i=0; i<25; i++){
+    const p = document.createElement('div');
+    p.className = 'particle';
+    gas.appendChild(p);
+    particles.push({
+      el: p,
+      x: Math.random() * 80 + 10,
+      y: Math.random() * 80 + 10,
+      vx: (Math.random() - 0.5) * 2,
+      vy: (Math.random() - 0.5) * 2
+    });
+  }
+}
+
+function updateParticles(){
+  const speed = Math.sqrt(state.T / 300) * 1.5;
+  particles.forEach(p => {
+    p.x += p.vx * speed;
+    p.y += p.vy * speed;
+    if(p.x < 5 || p.x > 90) p.vx *= -1;
+    if(p.y < 5 || p.y > 90) p.vy *= -1;
+    p.el.style.left = `${p.x}%`;
+    p.el.style.top = `${p.y}%`;
+  });
+}
+setInterval(updateParticles, 50);
+
+// ピストンドラッグ実装
+function setupDrag(){
+  const cylinder = $('cylinder');
+  let dragging = false;
+  let startY = 0;
+  let startV = state.V;
+
+  const onStart = (e) => {
+    const m = currentMission();
+    if(state.appMode === 'mission' && (!m || m.control[0] !== 'V' || m.forceVFix)) return;
+    if(state.appMode === 'explore' && state.law === 'combined') { /* V操作可 */ }
+    dragging = true;
+    if(e.cancelable) e.preventDefault();
+    startY = e.touches ? e.touches[0].clientY : e.clientY;
+    startV = state.V;
+  };
+
+  const onMove = (e) => {
+    if(!dragging) return;
+    if(e.cancelable) e.preventDefault();
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+    const dy = startY - y;
+    const newV = startV + (dy / 200) * 22.5;
+    handleUserChange('V', newV);
+  };
+
+  const onEnd = () => { dragging = false; };
+
+  cylinder.addEventListener('mousedown', onStart);
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onEnd);
+  cylinder.addEventListener('touchstart', onStart, {passive:false});
+  window.addEventListener('touchmove', onMove, {passive:false});
+  window.addEventListener('touchend', onEnd, {passive:true});
+}
+
+function recordPoint(){
+  state.points.push({P:state.P, V:state.V, T:state.T});
+  const tbody = $('dataBody');
+  if(state.points.length === 1) tbody.innerHTML = '';
+  const row = document.createElement('tr');
+  row.innerHTML = `<td>${state.points.length}</td><td>${state.P.toFixed(2)}</td><td>${state.V.toFixed(2)}</td><td>${state.T.toFixed(0)}</td>`;
+  tbody.appendChild(row);
+  drawGraph();
+}
+
+function resetState(){
+  state.T = 300; state.P = 1.0; state.V = 6.0;
+  state.ref = {T:300, P:1.0, V:6.0};
+  state.points = [];
+  $('dataBody').innerHTML = '<tr><td colspan="4">「測定点を記録」で追加</td></tr>';
+  syncUI();
+}
+
+// SVG グラフ描画
+function drawGraph(){
+  const svg = $('graphSvg');
+  svg.innerHTML = '';
+  const w=380, h=250, pad=38;
+
+  const axes=(xLabel,yLabel)=>{
+    let s=`<line x1="${pad}" y1="${h-pad}" x2="${w-10}" y2="${h-pad}" stroke="#94a3b8" stroke-width="2"/>
+           <line x1="${pad}" y1="10" x2="${pad}" y2="${h-pad}" stroke="#94a3b8" stroke-width="2"/>
+           <text x="${w-18}" y="${h-10}" font-size="10" text-anchor="end" fill="#64748b">${xLabel}</text>
+           <text x="6" y="18" font-size="10" fill="#64748b">${yLabel}</text>`;
+    for(let i=1;i<=4;i++){
+      const gx=pad+(w-pad-10)*i/5, gy=10+(h-pad-10)*i/5;
+      s+=`<line x1="${gx}" y1="10" x2="${gx}" y2="${h-pad}" stroke="#e2e8f0" stroke-width="1"/>
+          <line x1="${pad}" y1="${gy}" x2="${w-10}" y2="${gy}" stroke="#e2e8f0" stroke-width="1"/>`;
+    }
+    return s;
+  };
+
+  let html='';
+
+  if(state.law === 'charles'){
+    // シャルルの法則：横軸T(K)、縦軸V(L)
+    const Tmin=150,Tmax=600,Vmin=0,Vmax=14;
+    const mapX=t=>pad+(t-Tmin)/(Tmax-Tmin)*(w-pad-10);
+    const mapY=v=>h-pad-(v-Vmin)/(Vmax-Vmin)*(h-pad-10);
+    html=axes('T (K)','V (L)');
+
+    let d='';
+    for(let t=Tmin;t<=Tmax;t+=5){
+      const v=state.ref.V/state.ref.T*t;
+      if(v>=Vmin && v<=Vmax) d+=(d?'L':'M')+`${mapX(t)},${mapY(v)} `;
+    }
+    html+=`<path d="${d}" fill="none" stroke="#1769aa" stroke-width="3"/>`;
+
+    state.points.forEach(pt=>{
+      html+=`<circle cx="${mapX(pt.T)}" cy="${mapY(pt.V)}" r="4" fill="#fff" stroke="#1769aa" stroke-width="2"/>`;
+    });
+    html+=`<polygon points="${mapX(state.ref.T)},${mapY(state.ref.V)-5} ${mapX(state.ref.T)+5},${mapY(state.ref.V)} ${mapX(state.ref.T)},${mapY(state.ref.V)+5} ${mapX(state.ref.T)-5},${mapY(state.ref.V)}" fill="#d97706"/>`;
+    html+=`<circle cx="${mapX(state.T)}" cy="${mapY(state.V)}" r="6" fill="#ef4444"/>`;
+  } else {
+    // ボイル / 複合則：P-V グラフ
+    const Vmin=1.5,Vmax=24,Pmin=0,Pmax=4;
+    const mapX=v=>pad+(v-Vmin)/(Vmax-Vmin)*(w-pad-10);
+    const mapY=p=>h-pad-(p-Pmin)/(Pmax-Pmin)*(h-pad-10);
+    html=axes('V (L)','P (atm)');
+
+    let d='';
+    for(let v=Vmin;v<=Vmax;v+=0.25){
+      const p=(state.ref.P*state.ref.V*(state.T/state.ref.T))/v;
+      if(p>=Pmin && p<=Pmax) d+=(d?'L':'M')+`${mapX(v)},${mapY(p)} `;
+    }
+    html+=`<path d="${d}" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="4"/>`;
+    state.points.forEach(pt=>{
+      if(pt.P>=Pmin && pt.P<=Pmax) html+=`<circle cx="${mapX(pt.V)}" cy="${mapY(pt.P)}" r="4" fill="#fff" stroke="#1769aa" stroke-width="2"/>`;
+    });
+    html+=`<polygon points="${mapX(state.ref.V)},${mapY(state.ref.P)-5} ${mapX(state.ref.V)+5},${mapY(state.ref.P)} ${mapX(state.ref.V)},${mapY(state.ref.P)+5} ${mapX(state.ref.V)-5},${mapY(state.ref.P)}" fill="#d97706"/>`;
+    html+=`<circle cx="${mapX(state.V)}" cy="${mapY(state.P)}" r="6" fill="#ef4444"/>`;
+  }
+
+  svg.innerHTML=html;
+}
+
+// 紙吹雪演出
+function triggerConfetti(){
+  const canvas = $('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  let pieces = Array.from({length:80}, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height - canvas.height,
+    size: Math.random() * 8 + 4,
+    color: ['#f59e0b','#10b981','#38bdf8','#ec4899'][Math.floor(Math.random()*4)],
+    vy: Math.random() * 3 + 2
+  }));
+
+  let frame = 0;
+  function loop(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    pieces.forEach(p => {
+      p.y += p.vy;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x, p.y, p.size, p.size);
+    });
+    if(frame++ < 100) requestAnimationFrame(loop);
+    else ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+  loop();
+}
+</script>
+</body>
+</html>
